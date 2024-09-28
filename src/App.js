@@ -1,24 +1,48 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { ChakraProvider, Box, extendTheme } from '@chakra-ui/react';
+import { AccountsProvider } from './contexts/AccountsContext';
+import Dashboard from './components/Dashboard';
+
+const theme = extendTheme({
+  styles: {
+    global: {
+      body: {
+        bg: 'white',
+        color: 'gray.800',
+      },
+    },
+  },
+  colors: {
+    brand: {
+      50: '#f7fafc',
+      500: '#1a202c',
+    },
+  },
+  components: {
+    Button: {
+      baseStyle: {
+        borderRadius: 'full',
+      },
+    },
+    Input: {
+      baseStyle: {
+        field: {
+          borderRadius: 'full',
+        },
+      },
+    },
+  },
+});
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ChakraProvider theme={theme}>
+      <AccountsProvider>
+        <Box maxWidth="1200px" margin="auto" p={4}>
+          <Dashboard />
+        </Box>
+      </AccountsProvider>
+    </ChakraProvider>
   );
 }
 
