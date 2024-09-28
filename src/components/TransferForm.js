@@ -1,116 +1,144 @@
-import React, { useState, useEffect } from 'react';
-import { VStack, HStack, Input, Button, Text, useToast, InputGroup, InputLeftElement, FormControl, FormErrorMessage } from '@chakra-ui/react';
+import React, { useState } from 'react';
+import {
+  Box,
+  VStack,
+  Heading,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Button,
+  FormControl,
+  FormLabel,
+  useToast,
+} from '@chakra-ui/react';
+import { createTransfer } from '../services/api';
 
-const TransferForm = ({ onTransfer, currentBalance }) => {
+const formatCurrency = (value) => {
+  const numericValue = parseFloat(value) / 100;
+  return new Intl.NumberFormat('en-US', { 
+    style: 'currency', 
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2 
+  }).format(numericValue);
+};
+
+const formatAccountNumber = (value) => {
+  const digits = value.replace(/\D/g, '');
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim().slice(0, 19); // 16 digits + 3 spaces
+};
+
+const TransferForm = ({ onTransferComplete, currentBalance, fromAccount }) => {
   const [amount, setAmount] = useState('');
-  const [formattedAmount, setFormattedAmount] = useState('');
+  const [displayAmount, setDisplayAmount] = useState('$0.00');
   const [toAccount, setToAccount] = useState('');
-  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
 
-  const formatAmount = (value) => {
-    const number = parseFloat(value.replace(/[^\d.]/g, ''));
-    return isNaN(number) ? '' : number.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  };
-
   const handleAmountChange = (e) => {
-    const rawValue = e.target.value.replace(/[^\d.]/g, '');
+    const rawValue = e.target.value.replace(/[^\d]/g, '');
     setAmount(rawValue);
-    setFormattedAmount(formatAmount(rawValue));
+    setDisplayAmount(formatCurrency(rawValue));
   };
 
-  const handleToAccountChange = (e) => {
-    const value = e.target.value.replace(/\D/g, '');
-    setToAccount(value.replace(/(\d{4})(?=\d)/g, '$1 '));
+  const handleAccountChange = (e) => {
+    const formatted = formatAccountNumber(e.target.value);
+    setToAccount(formatted);
   };
 
-  useEffect(() => {
-    validateForm();
-  }, [amount, toAccount]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const numericAmount = parseFloat(amount) / 100;
+    const toAccountNumber = toAccount.replace(/\s/g, '');
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (parseFloat(amount) > currentBalance) {
-      newErrors.amount = "Transfer amount exceeds available balance";
-    }
-    if (parseFloat(amount) <= 0) {
-      newErrors.amount = "Transfer amount must be greater than zero";
-    }
-    if (toAccount.length !== 19) {  // 16 digits + 3 spaces
-      newErrors.toAccount = "Account number must be 16 digits";
-    }
-    setErrors(newErrors);
-  };
-
-  const handleTransfer = () => {
-    if (Object.keys(errors).length > 0) {
+    if (isNaN(numericAmount) || numericAmount <= 0 || toAccountNumber.length !== 16) {
       toast({
-        title: "Validation Error",
-        description: "Please correct the errors before submitting",
-        status: "error",
+        title: 'Error',
+        description: 'Please enter a valid amount and 16-digit account number',
+        status: 'error',
         duration: 3000,
         isClosable: true,
       });
       return;
     }
-    onTransfer(parseFloat(amount), toAccount.replace(/\s/g, ''));
-    toast({
-      title: "Transfer Successful",
-      description: `${formattedAmount} transferred to account ${toAccount}`,
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    setAmount('');
-    setFormattedAmount('');
-    setToAccount('');
+
+    if (numericAmount > parseFloat(currentBalance)) {
+      toast({
+        title: 'Error',
+        description: 'Insufficient funds for transfer',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await createTransfer({
+        from_account: fromAccount,
+        to_account: toAccountNumber,
+        amount: numericAmount.toFixed(2)
+      });
+      setAmount('');
+      setDisplayAmount('$0.00');
+      setToAccount('');
+      toast({
+        title: 'Transfer Successful',
+        description: `Transferred ${formatCurrency(amount)} to account ${toAccountNumber}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      onTransferComplete(result);
+    } catch (error) {
+      toast({
+        title: 'Transfer Failed',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <VStack spacing={4} align="stretch" bg="white" p={6} borderRadius="md" boxShadow="sm">
-      <Text fontSize="xl" fontWeight="bold">New Transfer</Text>
-      <FormControl isInvalid={errors.amount}>
-        <InputGroup>
-          <InputLeftElement
-            pointerEvents="none"
-            color="gray.300"
-            fontSize="1.2em"
-            children="$"
-          />
+    <Box as="form" onSubmit={handleSubmit} borderWidth={1} borderRadius="lg" p={6} bg="white">
+      <VStack spacing={4} align="stretch">
+        <Heading size="md">New Transfer</Heading>
+        <FormControl>
+          <FormLabel>Amount</FormLabel>
+          <InputGroup>
+            <InputLeftElement pointerEvents="none" color="gray.300" fontSize="1.2em" children="$" />
+            <Input
+              value={displayAmount}
+              onChange={handleAmountChange}
+              placeholder="$0.00"
+              type="text"
+            />
+          </InputGroup>
+        </FormControl>
+        <FormControl>
+          <FormLabel>To Account</FormLabel>
           <Input
-            placeholder="0.00"
-            value={formattedAmount}
-            onChange={handleAmountChange}
+            value={toAccount}
+            onChange={handleAccountChange}
+            placeholder="0000 0000 0000 0000"
             type="text"
-            inputMode="decimal"
           />
-        </InputGroup>
-        <FormErrorMessage>{errors.amount}</FormErrorMessage>
-      </FormControl>
-      <FormControl isInvalid={errors.toAccount}>
-        <Input
-          placeholder="Account Number (16 digits)"
-          value={toAccount}
-          onChange={handleToAccountChange}
-          maxLength={19}
-        />
-        <FormErrorMessage>{errors.toAccount}</FormErrorMessage>
-      </FormControl>
-      <Button 
-        onClick={handleTransfer} 
-        bg="black" 
-        color="white" 
-        _hover={{ bg: 'gray.800' }} 
-        isDisabled={Object.keys(errors).length > 0}
-      >
-        Transfer
-      </Button>
-    </VStack>
+        </FormControl>
+        <Button 
+          type="submit" 
+          colorScheme="blue" 
+          isLoading={isLoading}
+          loadingText="Transferring"
+        >
+          Transfer
+        </Button>
+      </VStack>
+    </Box>
   );
 };
 

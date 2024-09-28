@@ -1,69 +1,101 @@
 import React, { useState, useEffect } from 'react';
-import { VStack, HStack, Text } from '@chakra-ui/react';
-import Header from './Header';
-import SearchBar from './SearchBar';
+import {
+  Box,
+  Container,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  useColorModeValue,
+} from '@chakra-ui/react';
+import { FiLogOut } from 'react-icons/fi';
 import AccountsList from './AccountsList';
 import AccountDetails from './AccountDetails';
 import TransferForm from './TransferForm';
-import { useAccounts } from '../contexts/AccountsContext';
+import { getAccounts, getAccountDetails } from '../services/api';
 
-const Dashboard = () => {
-  const { accounts, isLoading, updateAccount } = useAccounts();
+const Dashboard = ({ onLogout }) => {
+  const [accounts, setAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [filteredAccounts, setFilteredAccounts] = useState(accounts);
+  const [isLoading, setIsLoading] = useState(true);
+  const bgColor = useColorModeValue('gray.50', 'gray.900');
 
   useEffect(() => {
-    setFilteredAccounts(accounts);
-  }, [accounts]);
+    fetchAccounts();
+  }, []);
 
-  const handleSearch = (query) => {
-    const filtered = accounts.filter(account => 
-      account.name.toLowerCase().includes(query.toLowerCase()) ||
-      account.accountNumber.includes(query)
-    );
-    setFilteredAccounts(filtered);
+  const fetchAccounts = async () => {
+    setIsLoading(true);
+    try {
+      const fetchedAccounts = await getAccounts();
+      setAccounts(fetchedAccounts);
+    } catch (error) {
+      console.error('Failed to fetch accounts:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleAccountSelect = (account) => {
-    setSelectedAccount(account);
+  const handleAccountSelect = async (account) => {
+    try {
+      const accountDetails = await getAccountDetails(account.id);
+      setSelectedAccount(accountDetails);
+    } catch (error) {
+      console.error('Failed to fetch account details:', error);
+    }
   };
 
-  const handleTransfer = async (amount, toAccount) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const updatedAccount = {
-      ...selectedAccount,
-      balance: selectedAccount.balance - parseFloat(amount),
-      transactions: [
-        { date: new Date().toISOString().split('T')[0], description: `Transfer to ${toAccount}`, amount: -parseFloat(amount) },
-        ...selectedAccount.transactions
-      ]
-    };
-    
-    updateAccount(updatedAccount);
-    setSelectedAccount(updatedAccount);
+  const handleTransferComplete = async (result) => {
+    if (selectedAccount) {
+      const updatedAccount = await getAccountDetails(selectedAccount.id);
+      setSelectedAccount(updatedAccount);
+    }
+    await fetchAccounts();
   };
 
   return (
-    <VStack spacing={8} align="stretch">
-      <Header />
-      <HStack justify="space-between" align="center">
-        <Text fontSize="2xl" fontWeight="bold">Accounts</Text>
-        <SearchBar onSearch={handleSearch} />
-      </HStack>
-      <AccountsList 
-        accounts={filteredAccounts} 
-        isLoading={isLoading}
-        onAccountSelect={handleAccountSelect}
-      />
-      {selectedAccount && (
-        <>
-          <AccountDetails account={selectedAccount} />
-          <TransferForm onTransfer={handleTransfer} />
-        </>
-      )}
-    </VStack>
+    <Box bg={bgColor} minHeight="100vh">
+      <Container maxW="container.xl" py={8}>
+        <Flex justifyContent="space-between" alignItems="center" mb={8}>
+          <Heading size="xl">Bark Bank</Heading>
+          <Flex alignItems="center">
+            <Text fontSize="sm" color="gray.500" mr={4}>Customer Support Portal</Text>
+            <Button
+              leftIcon={<FiLogOut />}
+              onClick={onLogout}
+              variant="ghost"
+              size="sm"
+            >
+              Logout
+            </Button>
+          </Flex>
+        </Flex>
+        
+        <Flex direction={{ base: 'column', lg: 'row' }} gap={8}>
+          <Box flex={1}>
+            <AccountsList 
+              accounts={accounts} 
+              onAccountSelect={handleAccountSelect}
+              selectedAccountId={selectedAccount?.id}
+              isLoading={isLoading}
+            />
+          </Box>
+          
+          {selectedAccount && (
+            <Box flex={1}>
+              <AccountDetails account={selectedAccount} />
+              <Box mt={6}>
+                <TransferForm 
+                  onTransferComplete={handleTransferComplete}
+                  currentBalance={selectedAccount.balance}
+                  fromAccount={selectedAccount.id}
+                />
+              </Box>
+            </Box>
+          )}
+        </Flex>
+      </Container>
+    </Box>
   );
 };
 
