@@ -86,6 +86,7 @@ export const createTransfer = async (transferData) => {
     });
     return response.data;
   } catch (error) {
+    console.log(error)
     throw new Error(error.response?.data?.detail || 'Transfer failed. Please try again later.');
   }
 };
