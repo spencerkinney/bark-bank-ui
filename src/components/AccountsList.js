@@ -13,7 +13,6 @@ const AccountsList = ({ accounts, onAccountSelect, selectedAccountId, isLoading 
   return (
     <VStack spacing={4} align="stretch">
       {accounts.map((account) => {
-        // Check for first name and last name, fallback to "Unknown User" if missing
         // Check for first and last name in user_detail, fallback to "Unknown User" if missing
         const userName = account?.user_detail?.first_name && account?.user_detail?.last_name
           ? `${account.user_detail.first_name} ${account.user_detail.last_name}`
