@@ -41,10 +41,11 @@ const AccountDetails = ({ account }) => {
     }
   };
 
-  // Check for first and last name, fallback to "Unknown User" if missing
-  const userName = account?.user?.first_name && account?.user?.last_name
-    ? `${account.user.first_name} ${account.user.last_name}`
-    : 'Unknown User';
+  // Check for first and last name in user_detail, fallback to "Unknown User" if missing
+  const userName = account?.user_detail?.first_name && account?.user_detail?.last_name
+    ? `${account.user_detail.first_name} ${account.user_detail.last_name}`
+    : 'Unknown Usera';
+
 
   return (
     <Box borderWidth={1} borderRadius="lg" p={6} bg="white">
