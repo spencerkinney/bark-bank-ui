@@ -1,3 +1,4 @@
+// components/AccountSearch.js
 import React, { useState } from 'react';
 import { Input, Button, HStack, VStack, Text, Box } from '@chakra-ui/react';
 

@@ -1,5 +1,5 @@
 // contexts/AccountsContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { getAccounts, getAccountDetails } from '../services/api';
 
 const AccountsContext = createContext();
@@ -11,22 +11,23 @@ export const AccountsProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      setIsLoading(true);
-      try {
-        const fetchedAccounts = await getAccounts();
-        setAccounts(fetchedAccounts);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAccounts();
+  const fetchAccounts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const fetchedAccounts = await getAccounts();
+      setAccounts(fetchedAccounts);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching accounts:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const updateAccount = async (accountId) => {
     try {
@@ -39,21 +40,13 @@ export const AccountsProvider = ({ children }) => {
       return updatedAccount;
     } catch (err) {
       setError(err.message);
+      console.error('Error updating account:', err);
       throw err;
     }
   };
 
   const refreshAccounts = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedAccounts = await getAccounts();
-      setAccounts(fetchedAccounts);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    await fetchAccounts();
   };
 
   return (

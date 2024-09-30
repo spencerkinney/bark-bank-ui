@@ -1,3 +1,4 @@
+// components/TransferForm.js
 import React, { useState } from 'react';
 import {
   Box,
@@ -28,10 +29,11 @@ const formatAccountNumber = (value) => {
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim().slice(0, 19); // 16 digits + 3 spaces
 };
 
-const TransferForm = ({ onTransferComplete, currentBalance, fromAccount }) => {
+const TransferForm = ({ onTransferComplete, currentBalance }) => {
   const [amount, setAmount] = useState('');
   const [displayAmount, setDisplayAmount] = useState('$0.00');
-  const [toAccount, setToAccount] = useState('');
+  const [fromAccountNumber, setFromAccountNumber] = useState('');
+  const [toAccountNumber, setToAccountNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
 
@@ -41,20 +43,26 @@ const TransferForm = ({ onTransferComplete, currentBalance, fromAccount }) => {
     setDisplayAmount(formatCurrency(rawValue));
   };
 
-  const handleAccountChange = (e) => {
+  const handleFromAccountChange = (e) => {
     const formatted = formatAccountNumber(e.target.value);
-    setToAccount(formatted);
+    setFromAccountNumber(formatted);
+  };
+
+  const handleToAccountChange = (e) => {
+    const formatted = formatAccountNumber(e.target.value);
+    setToAccountNumber(formatted);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const numericAmount = parseFloat(amount) / 100;
-    const toAccountNumber = toAccount.replace(/\s/g, '');
+    const fromAccountNumberClean = fromAccountNumber.replace(/\s/g, '');
+    const toAccountNumberClean = toAccountNumber.replace(/\s/g, '');
 
-    if (isNaN(numericAmount) || numericAmount <= 0 || toAccountNumber.length !== 16) {
+    if (isNaN(numericAmount) || numericAmount <= 0 || fromAccountNumberClean.length !== 16 || toAccountNumberClean.length !== 16) {
       toast({
         title: 'Error',
-        description: 'Please enter a valid amount and 16-digit account number',
+        description: 'Please enter a valid amount and 16-digit account numbers for both accounts',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -76,16 +84,17 @@ const TransferForm = ({ onTransferComplete, currentBalance, fromAccount }) => {
     setIsLoading(true);
     try {
       const result = await createTransfer({
-        from_account: fromAccount,
-        to_account: toAccountNumber,
+        from_account_number: fromAccountNumberClean,
+        to_account_number: toAccountNumberClean,
         amount: numericAmount.toFixed(2)
       });
       setAmount('');
       setDisplayAmount('$0.00');
-      setToAccount('');
+      setFromAccountNumber('');
+      setToAccountNumber('');
       toast({
         title: 'Transfer Successful',
-        description: `Transferred ${formatCurrency(amount)} to account ${toAccountNumber}`,
+        description: `Transferred ${formatCurrency(amount)} from account ${fromAccountNumberClean} to account ${toAccountNumberClean}`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -109,6 +118,24 @@ const TransferForm = ({ onTransferComplete, currentBalance, fromAccount }) => {
       <VStack spacing={4} align="stretch">
         <Heading size="md">New Transfer</Heading>
         <FormControl>
+          <FormLabel>From Account</FormLabel>
+          <Input
+            value={fromAccountNumber}
+            onChange={handleFromAccountChange}
+            placeholder="0000 0000 0000 0000"
+            type="text"
+          />
+        </FormControl>
+        <FormControl>
+          <FormLabel>To Account</FormLabel>
+          <Input
+            value={toAccountNumber}
+            onChange={handleToAccountChange}
+            placeholder="0000 0000 0000 0000"
+            type="text"
+          />
+        </FormControl>
+        <FormControl>
           <FormLabel>Amount</FormLabel>
           <InputGroup>
             <InputLeftElement pointerEvents="none" color="gray.300" fontSize="1.2em" children="$" />
@@ -119,15 +146,6 @@ const TransferForm = ({ onTransferComplete, currentBalance, fromAccount }) => {
               type="text"
             />
           </InputGroup>
-        </FormControl>
-        <FormControl>
-          <FormLabel>To Account</FormLabel>
-          <Input
-            value={toAccount}
-            onChange={handleAccountChange}
-            placeholder="0000 0000 0000 0000"
-            type="text"
-          />
         </FormControl>
         <Button 
           type="submit" 

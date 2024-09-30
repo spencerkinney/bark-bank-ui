@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
   : 'http://localhost:8000';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api/`,  // Note the '/api/' added here
   headers: {
     'Content-Type': 'application/json',
   },
@@ -33,73 +33,89 @@ api.interceptors.response.use(
 
 export const login = async (username, password) => {
   try {
-    const response = await api.post('/token/', { username, password });
+    // Note: We use axios directly here because the token endpoint is not under /api/
+    const response = await axios.post(`${API_BASE_URL}/token/`, { username, password });
     localStorage.setItem('authToken', response.data.token);
     return response.data;
   } catch (error) {
+    console.error('Login error:', error.response || error);
     throw new Error('Login failed. Please check your credentials.');
   }
 };
 
 export const getAccounts = async () => {
   try {
-    const response = await api.get('/api/accounts/');
+    const response = await api.get('accounts/');
     return response.data;
   } catch (error) {
+    console.error('Get accounts error:', error.response || error);
     throw new Error('Failed to fetch accounts. Please try again later.');
   }
 };
 
 export const getAccountDetails = async (accountId) => {
   try {
-    const response = await api.get(`/api/accounts/${accountId}/`);
+    const response = await api.get(`accounts/${accountId}/`);
     return response.data;
   } catch (error) {
+    console.error('Get account details error:', error.response || error);
     throw new Error('Failed to fetch account details. Please try again later.');
   }
 };
 
 export const getAccountBalance = async (accountId) => {
   try {
-    const response = await api.get(`/api/accounts/${accountId}/balance/`);
+    const response = await api.get(`accounts/${accountId}/balance/`);
     return response.data;
   } catch (error) {
+    console.error('Get account balance error:', error.response || error);
     throw new Error('Failed to fetch account balance. Please try again later.');
   }
 };
 
 export const getTransferHistory = async (accountId) => {
   try {
-    const response = await api.get(`/api/accounts/${accountId}/transfers/`);
-    return response.data;
+    const response = await api.get(`accounts/${accountId}/transfers/`);
+    
+    // Sort transfers by timestamp in descending order (latest first)
+    const sortedTransfers = response.data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Return only the last 5 transfers
+    return sortedTransfers.slice(0, 5);
   } catch (error) {
+    console.error('Get transfer history error:', error.response || error);
     throw new Error('Failed to fetch transfer history. Please try again later.');
   }
 };
 
 export const createTransfer = async (transferData) => {
   try {
-    const response = await api.post('/api/transfers/', {
-      from_account: transferData.from_account,
-      to_account: transferData.to_account,
-      amount: transferData.amount
-    });
+    const response = await api.post('transfers/', transferData);
     return response.data;
   } catch (error) {
-    console.log(error)
+    console.error('Create transfer error:', error.response || error);
     throw new Error(error.response?.data?.detail || 'Transfer failed. Please try again later.');
   }
 };
 
-export const createAccount = async (userId, accountNumber, initialDeposit) => {
+export const createAccount = async (accountData) => {
   try {
-    const response = await api.post('/api/accounts/', {
-      user: userId,
-      account_number: accountNumber,
-      initial_deposit: initialDeposit.toString(),
-    });
+    const response = await api.post('accounts/', accountData);
     return response.data;
   } catch (error) {
+    console.error('Create account error:', error.response || error);
     throw new Error('Failed to create account. Please try again later.');
   }
 };
+
+export const getUsers = async () => {
+  try {
+    const response = await api.get('users/');
+    return response.data;
+  } catch (error) {
+    console.error('Get users error:', error.response || error);
+    throw new Error('Failed to fetch users. Please try again later.');
+  }
+};
+
+export default api;

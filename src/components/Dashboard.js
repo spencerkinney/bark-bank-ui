@@ -1,3 +1,4 @@
+// components/Dashboard.js
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -7,50 +8,63 @@ import {
   Text,
   Button,
   useColorModeValue,
+  useToast,
 } from '@chakra-ui/react';
 import { FiLogOut } from 'react-icons/fi';
 import AccountsList from './AccountsList';
 import AccountDetails from './AccountDetails';
 import TransferForm from './TransferForm';
-import { getAccounts, getAccountDetails } from '../services/api';
+import CreateAccount from './CreateAccount';
+import { useAccounts } from '../contexts/AccountsContext';
 
 const Dashboard = ({ onLogout }) => {
-  const [accounts, setAccounts] = useState([]);
+  const { accounts, isLoading, error, updateAccount, refreshAccounts } = useAccounts();
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const bgColor = useColorModeValue('gray.50', 'gray.900');
+  const toast = useToast();
 
   useEffect(() => {
-    fetchAccounts();
+    refreshAccounts();
   }, []);
 
-  const fetchAccounts = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedAccounts = await getAccounts();
-      setAccounts(fetchedAccounts);
-    } catch (error) {
-      console.error('Failed to fetch accounts:', error);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     }
-  };
+  }, [error, toast]);
 
   const handleAccountSelect = async (account) => {
     try {
-      const accountDetails = await getAccountDetails(account.id);
-      setSelectedAccount(accountDetails);
+      const updatedAccount = await updateAccount(account.id);
+      setSelectedAccount(updatedAccount);
     } catch (error) {
       console.error('Failed to fetch account details:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch account details. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
-  const handleTransferComplete = async (result) => {
+  const handleTransferComplete = async () => {
+    await refreshAccounts();
     if (selectedAccount) {
-      const updatedAccount = await getAccountDetails(selectedAccount.id);
+      const updatedAccount = await updateAccount(selectedAccount.id);
       setSelectedAccount(updatedAccount);
     }
-    await fetchAccounts();
+  };
+
+  const handleAccountCreated = async () => {
+    await refreshAccounts();
   };
 
   return (
@@ -88,12 +102,15 @@ const Dashboard = ({ onLogout }) => {
                 <TransferForm 
                   onTransferComplete={handleTransferComplete}
                   currentBalance={selectedAccount.balance}
-                  fromAccount={selectedAccount.id}
                 />
               </Box>
             </Box>
           )}
         </Flex>
+
+        <Box mt={8}>
+          <CreateAccount onAccountCreated={handleAccountCreated} />
+        </Box>
       </Container>
     </Box>
   );
